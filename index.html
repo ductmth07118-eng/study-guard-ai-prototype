@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>StudyGuard OS - Prototype Edition</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #050614;
+            --panel: #0d1222;
+            --panel-light: #161c31;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-hover: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --accent: #10b981;
+            --primary: #7274f8;
+            --primary-glow: rgba(114, 116, 248, 0.4);
+            --warn: #f59e0b;
+            --danger: #ef4444;
+            --text: #f8fafc;
+            --muted: #8b9bb4;
+            --radius: 16px;
+            --font-main: "Plus Jakarta Sans", sans-serif;
+            --font-code: "JetBrains Mono", monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            height: 100dvh; font-family: var(--font-main); background: var(--bg);
+            color: var(--text); overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(114, 116, 248, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
+        }
+
+        /* Scrollbar Fixes */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+        h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.01em; }
+        p { color: var(--muted); line-height: 1.6; }
+
+        /* Inputs & Select */
+        .input {
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            background: #090c15; border: 1px solid var(--glass-border);
+            color: var(--text); outline: none; transition: 0.2s; font-family: inherit;
+            font-size: 0.95rem;
+        }
+        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(114, 116, 248, 0.15); }
+        
+        select.input {
+            appearance: auto;
+            -webkit-appearance: auto;
+            -moz-appearance: auto;
+            cursor: pointer;
+            background-color: #090c15;
+            color: var(--text);
+            padding-right: 12px;
+        }
+        select.input option { background: #0d1222; color: var(--text); }
+
+        /* Buttons */
+        .btn {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            color: var(--text); padding: 12px 20px; border-radius: 12px;
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-weight: 600; transition: all 0.2s; font-size: 0.9rem; white-space: nowrap;
+        }
+        .btn:hover { background: var(--glass-hover); border-color: rgba(255,255,255,0.15); transform: translateY(-1px); }
+        .btn:active { transform: scale(0.98); }
+        .btn.primary { background: var(--primary); border: none; box-shadow: 0 4px 15px var(--primary-glow); color: #fff; }
+        .btn.primary:hover { background: #818cf8; transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
+        .btn.dark { background: #0d1222; border: 1px solid rgba(255,255,255,0.05); }
+        .btn.dark:hover { background: #161c31; }
+        
+        /* Layout Structure */
+        #onboarding { position: fixed; inset: 0; background: rgba(5, 6, 15, 0.95); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(20px); }
+        .auth-card { background: var(--panel); padding: 40px; border-radius: 24px; border: 1px solid var(--glass-border); width: 90%; max-width: 440px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+
+        #mainApp { display: none; height: 100%; flex-direction: column; opacity: 0; transition: 0.6s ease; }
+
+        header { padding: 14px 24px; background: rgba(13, 18, 34, 0.8); border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(20px); z-index: 100; }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color:#fff; box-shadow: 0 0 12px var(--primary-glow); }
+
+        .nav-tabs { display: flex; gap: 4px; padding: 4px; background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .nav-tab { background: transparent; border: none; color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; font-size: 0.85rem; }
+        .nav-tab.active { background: #161c31; color: var(--text); }
+
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+
+        /* Sidebar & Cards */
+        .sidebar { width: 360px; padding: 20px; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; background: rgba(13, 18, 34, 0.4); }
+        .card { background: var(--panel); border-radius: var(--radius); padding: 20px; border: 1px solid var(--glass-border); }
+        
+        .task-card-wrapper { flex: 1; display: flex; flex-direction: column; min-height: 0; } 
+        
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
+        .task-header h4 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+        .task-progress { font-size: 0.85rem; color: var(--primary); font-family: var(--font-code); background: rgba(114,116,248,0.1); padding: 4px 10px; border-radius: 12px; font-weight:bold; }
+        
+        .task-input-group { display: flex; gap: 12px; margin-bottom: 20px; flex-shrink: 0; }
+        .task-input-group input { flex: 1; border-radius: 14px; background: #090c15; border: 1px solid rgba(255,255,255,0.05); }
+        .btn-add { width: 50px; height: 50px; padding: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: #818cf8; flex-shrink: 0; }
+        
+        #taskList { flex: 1; overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 10px; min-height: 0; margin-bottom: 10px;}
+
+        .task-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #090c15; border-radius: 16px; transition: 0.2s; border: 1px solid transparent; flex-shrink: 0; }
+        .task-item:hover { border-color: rgba(255,255,255,0.08); }
+        .task-item.done { opacity: 0.5; }
+        .task-item.done span { text-decoration: line-through; color: var(--muted); }
+        
+        .custom-checkbox { width: 22px; height: 22px; border-radius: 4px; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
+        .task-item.done .custom-checkbox { background: var(--primary); }
+        .custom-checkbox i { font-size: 12px; color: #fff; display: none; }
+        .task-item.done .custom-checkbox i { display: block; }
+        
+        .task-actions { display: flex; gap: 8px; margin-left: auto; }
+        .task-btn { width: 36px; height: 36px; border-radius: 10px; background: #161c31; border: none; color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; flex-shrink: 0; }
+        .task-btn:hover { background: #232b47; }
+
+        .task-bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.05); flex-shrink: 0; }
+
+        /* Main View */
+        .main-content { flex: 1; overflow-y: auto; padding: 32px; }
+        .view { display: none; flex-direction: column; gap: 24px; }
+        .view.active { display: flex; animation: slideUp 0.4s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        .stat-card { padding: 20px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top:0; left:0; right:0; height:3px; background: var(--c); opacity: 0.8; }
+        .stat-label { font-size: 0.8rem; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; }
+        .stat-val { font-family: var(--font-code); font-size: 2rem; font-weight: 800; margin-top: 8px; color: var(--text); }
+
+        /* AI ANALYZER STYLES (WOW FACTOR) */
+        #analyzeResult { background: #090c15; border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; display: none; margin-top: 16px; }
+        .ai-section { background: var(--panel); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.03); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .ai-title { font-size: 1.15rem; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; }
+        .ai-list { padding-left: 24px; color: var(--text); line-height: 1.8; font-size: 0.95rem; margin-bottom: 10px; }
+        .ai-list li { margin-bottom: 10px; padding-left: 5px; }
+        .ai-list li::marker { color: var(--primary); }
+        .ai-badge-danger { background: rgba(239,68,68,0.15); color: #fca5a5; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid rgba(239,68,68,0.3); margin-left: auto; }
+        .ai-badge-success { background: rgba(16,185,129,0.15); color: #6ee7b7; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid rgba(16,185,129,0.3); margin-left: auto; }
+        .ai-code { background: #000; color: #a5b4fc; padding: 16px; border-radius: 10px; font-family: var(--font-code); font-size: 0.9rem; margin: 15px 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.1); line-height: 1.6; white-space: pre-wrap; }
+        
+        .loading-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top-color: var(--primary); animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modals & Misc */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 10005; backdrop-filter: blur(10px); }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
+        .modal-content { background: var(--panel); border: 1px solid var(--glass-border); width: 90%; max-width: 450px; border-radius: 20px; padding: 32px; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+        
+        #gokuMode { position: fixed; inset: 0; background: radial-gradient(circle, #1a0505 0%, #000 100%); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .goku-timer { font-family: var(--font-code); font-size: 7rem; font-weight: 900; color: var(--danger); text-shadow: 0 0 40px rgba(239,68,68,0.5); }
+        
+        #toastContainer { position:fixed; bottom:24px; right:24px; z-index:10006; display:flex; flex-direction:column; gap:10px; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .time-btn-group { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+        .time-btn { background: #0d1222; border: 1px solid rgba(255,255,255,0.05); color: var(--muted); padding: 8px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; font-size: 0.9rem; }
+        .time-btn:hover { background: #161c31; color: var(--text); }
+        .time-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 10px var(--primary-glow); }
+        
+        .prototype-badge { position: absolute; top: 10px; right: 20px; background: var(--warn); color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<div class="prototype-badge"><i class="fa-solid fa-vial"></i> BẢN PROTOTYPE DEMO</div>
+
+<div id="onboarding">
+    <div class="auth-card">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:32px;">
+            <div class="brand-icon" style="background:transparent; box-shadow:none; font-size:32px; color:var(--primary);"><i class="fa-solid fa-leaf"></i></div>
+            <div>
+                <h2 style="margin:0; font-size:1.4rem">Chào mừng đến với StudyGuard</h2>
+                <p style="margin:0; font-size:0.8rem; color:var(--muted); margin-top:4px;">Hệ sinh thái học tập thấu hiểu bạn — Bản Mô Phỏng (Prototype).</p>
+            </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="display:block; margin-bottom:8px; font-size:0.85rem; color:var(--muted)">Bạn tên là gì?</label>
+            <input id="userName" class="input" type="text" placeholder="VD: Nhóm OCT">
+        </div>
+
+        <div style="margin-bottom:32px;">
+            <label style="display:block; margin-bottom:8px; font-size:0.85rem; color:var(--muted)">Mục tiêu quan trọng nhất?</label>
+            <select id="userField" class="input">
+                <option value="code">💻 Luyện thuật toán & Code Web/Java</option>
+                <option value="math">📐 Ôn thi Toán & Khoa học</option>
+                <option value="focus">🧠 Cai nghiện MXH & Cải thiện tập trung</option>
+            </select>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+            <button id="launchBtn" class="btn primary" style="flex:1;">Trải nghiệm Demo &nbsp;<i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+    </div>
+</div>
+
+<div id="mainApp">
+    <header>
+        <div class="brand">
+            <div class="brand-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div>
+                <div style="font-weight:800; font-size:0.95rem">StudyGuard OS</div>
+                <div style="font-size:0.75rem; color:var(--muted)">Xin chào, <span id="displayName" style="color:var(--text); font-weight:600">User</span></div>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-simple" style="margin-right:6px"></i>Dashboard</button>
+            <button class="nav-tab" onclick="switchTab('analyzer', this)"><i class="fa-solid fa-code" style="margin-right:6px"></i>Code Analyzer</button>
+        </div>
+
+        <div>
+             <button onclick="openModal('settings')" class="btn dark" style="padding:8px 12px; border-radius:8px"><i class="fa-solid fa-gear"></i></button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <aside class="sidebar">
+            <div class="card" style="text-align:center; padding: 24px;">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--primary); letter-spacing: 1px;">FOCUS TIMER</div>
+                <div id="pomoDisplay" style="font-family: var(--font-code); font-size: 3.5rem; font-weight: 800; margin: 10px 0; text-shadow: 0 0 20px var(--primary-glow);">25:00</div>
+                
+                <div class="time-btn-group">
+                    <button class="time-btn" id="btn15" onclick="setTimer(15)">15'</button>
+                    <button class="time-btn active" id="btn25" onclick="setTimer(25)">25'</button>
+                    <button class="time-btn" id="btn50" onclick="setTimer(50)">50'</button>
+                </div>
+
+                <div style="display:flex; gap:10px; justify-content:center; margin-bottom:16px">
+                    <button id="timerToggle" class="btn primary" style="border-radius:14px; padding:12px 24px"><i class="fa-solid fa-play"></i></button>
+                    <button id="timerReset" class="btn dark" style="border-radius:14px; padding:12px 18px"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+                <button id="gokuBtn" class="btn" style="width:100%; border: 1px dashed rgba(239,68,68,0.4); color:var(--danger); background: rgba(239,68,68,0.05);">
+                    <i class="fa-solid fa-fire"></i> GOKU MODE
+                </button>
+            </div>
+
+            <div class="card task-card-wrapper" style="padding: 20px;">
+                <div class="task-header">
+                    <h4 style="color: var(--text);"><i class="fa-solid fa-list-check" style="color:var(--primary);"></i> Task Hôm Nay</h4>
+                    <span id="taskProgress" class="task-progress">0/1</span>
+                </div>
+                <div class="task-input-group">
+                    <input id="taskInput" class="input" placeholder="Bạn cần hoàn thành gì?">
+                    <button id="addTaskBtn" class="btn primary btn-add"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="taskList"></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="view-dashboard" class="view active">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end">
+                    <div>
+                        <h2>Phân tích Hiệu suất</h2>
+                        <p style="margin-top:6px">Báo cáo dựa trên thói quen tập trung của bạn.</p>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="card stat-card" style="--c: var(--primary)">
+                        <div class="stat-label">ĐỘ TẬP TRUNG</div>
+                        <div id="statFocus" class="stat-val">0%</div>
+                    </div>
+                    <div class="card stat-card" style="--c: var(--warn)">
+                        <div class="stat-label">RỦI RO BURNOUT</div>
+                        <div id="statBurnout" class="stat-val">0%</div>
+                    </div>
+                    <div class="card stat-card" style="--c: var(--accent)">
+                        <div class="stat-label">CHUỖI NGÀY (STREAK)</div>
+                        <div id="statStreak" class="stat-val">0</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px">
+                    <div class="card"><canvas id="pomoChart" height="220"></canvas></div>
+                    
+                    <div class="card" style="display:flex; flex-direction:column; background: linear-gradient(180deg, rgba(114,116,248,0.05), transparent); border-color: rgba(114,116,248,0.2);">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                            <div style="width:36px; height:36px; background:var(--primary); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff;">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <h4 style="color:var(--text)">Gia sư AI (Mô phỏng)</h4>
+                        </div>
+                        <div id="aiMessageWrapper" style="flex:1; display:flex; align-items:center;">
+                            <p id="aiMessage" style="font-size:0.95rem; line-height:1.7; color:var(--text);">Đang tải dữ liệu mô phỏng...</p>
+                        </div>
+                        <button onclick="fetchAIAdvice()" class="btn dark" style="width:100%; margin-top:16px; font-size:0.8rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Lời khuyên mới</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-analyzer" class="view">
+                <div>
+                    <h2><i class="fa-solid fa-wand-sparkles" style="color:var(--primary); margin-right:8px;"></i>AI Code Analyzer Deep Scan</h2>
+                    <p style="margin-top:6px">Chế độ Demo: Kết quả phân tích dưới đây được giả lập để trình diễn luồng hoạt động.</p>
+                </div>
+                
+                <div class="card" style="padding:0; border: 1px solid rgba(114, 116, 248, 0.3); overflow: hidden;">
+                    <textarea id="codeArea" class="input" style="height:280px; border:none; background:rgba(0,0,0,0.5); border-radius:0; font-family:var(--font-code); padding:20px; line-height: 1.6; font-size: 0.95rem;" placeholder="// Hãy thử dán một đoạn code bất kỳ vào đây...&#10;// Prototype sẽ trả về kết quả giả lập chuyên sâu."></textarea>
+                </div>
+                
+                <div style="display:flex; gap: 12px; align-items: center;">
+                    <button id="analyzeBtn" class="btn primary" style="padding: 12px 24px;"><i class="fa-solid fa-stethoscope"></i> Phân tích (Demo)</button>
+                </div>
+                
+                <div id="analyzeResult"></div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="modal-settings" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 20px;">Cài đặt hệ thống</h3>
+        <button onclick="closeModal('settings')" class="btn dark" style="width:100%;">Đóng</button>
+    </div>
+</div>
+<div id="gokuMode">
+    <h1 style="color:var(--danger); font-size:2.5rem; margin-bottom:10px">KHÔNG GIAN VÔ CỰC</h1>
+    <div id="gokuTimerDisplay" class="goku-timer">25:00</div>
+    <button id="exitGokuBtn" class="btn" style="margin-top:50px; background:transparent; border: 2px solid var(--danger); color:var(--danger); padding: 16px 32px; border-radius: 50px; font-weight:bold;">Giữ 3 giây để Bỏ cuộc</button>
+</div>
+<div id="toastContainer"></div>
+
+<script>
+    // =========================================================================
+    // --- BẢN PROTOTYPE: MÔ PHỎNG API GEMINI (KHÔNG DÙNG API KEY THẬT) ---
+    // =========================================================================
+    
+    async function fetchGeminiMock() {
+        // Giả lập thời gian delay 2 giây để tạo cảm giác AI đang suy nghĩ thật
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Trả về một khối HTML tĩnh y hệt như những gì Prompt gốc yêu cầu LLM trả về
+        return `
+        <div class="ai-section">
+            <h4 class="ai-title" style="color: var(--accent);"><i class="fa-solid fa-layer-group"></i> 1. Đánh giá Kiến Trúc & Độ Phức Tạp (Ví dụ mô phỏng)</h4>
+            <ul class="ai-list">
+                <li><strong>Phân tích luồng xử lý:</strong> Đoạn code đang sử dụng vòng lặp lồng nhau chưa tối ưu. Việc cấp phát bộ nhớ mảng tạm trong mỗi vòng lặp gây tiêu tốn tài nguyên.</li>
+                <li><strong>Big O (Time Complexity):</strong> O(n²) - Do sử dụng vòng lặp for lồng nhau duyệt qua tập dữ liệu lớn mà không dùng hash map.</li>
+                <li><strong>Big O (Space Complexity):</strong> O(n) - Bộ nhớ bị phình to do khai báo biến tạm bên trong scope của vòng lặp.</li>
+            </ul>
+        </div>
+        
+        <div class="ai-section">
+            <h4 class="ai-title" style="color: var(--danger);"><i class="fa-solid fa-bug"></i> 2. Bắt Lỗi & Phá Vỡ Clean Code <span class="ai-badge-danger">Phải sửa</span></h4>
+            <ul class="ai-list">
+                <li><strong>Lỗi Logic (Off-by-one):</strong> Điều kiện vòng lặp vượt quá kích thước mảng (i <= length), dễ gây crash ứng dụng.</li>
+                <li><strong>Clean Code:</strong> Tên biến 'a', 'x1', 'temp' quá chung chung. Không tuân thủ nguyên tắc naming convention của dự án thực tế.</li>
+            </ul>
+        </div>
+        
+        <div class="ai-section">
+            <h4 class="ai-title" style="color: var(--primary);"><i class="fa-solid fa-code"></i> 3. Code Đã Được Refactor & Tối Ưu <span class="ai-badge-success">Chuyên Gia Gợi Ý</span></h4>
+            <div class="ai-code">// Đây là đoạn code tối ưu giả lập do StudyGuard AI đề xuất
+function optimizeArray(items) {
+  // Thay vì 2 vòng lặp lồng nhau, ta sử dụng Map để lookup với O(1)
+  const lookupMap = new Map();
+  return items.filter(item => {
+    if(!lookupMap.has(item.id)) {
+      lookupMap.set(item.id, true);
+      return true;
+    }
+    return false;
+  });
+}</div>
+            <ul class="ai-list" style="margin-top:15px;">
+                <li><strong>Tại sao ưu việt hơn:</strong> Giảm độ phức tạp thời gian từ O(n²) xuống O(n). Code đọc thanh thoát và chuyên nghiệp hơn rất nhiều.</li>
+            </ul>
+        </div>
+        `;
+    }
+
+    // --- DATA MODEL (LƯU LOCALSTORAGE NHƯ CŨ) ---
+    let userData = {
+        name: "", goal: "code", stats: { started: 0, completed: 0, switches: 0 },
+        history: [0,0,0,0,0,0,0], streak: 0, tasks: [], lastLogin: new Date().toDateString()
+    };
+    const LS_KEY = 'study_guard_prototype_1';
+
+    function save() { localStorage.setItem(LS_KEY, JSON.stringify(userData)); }
+    function load() {
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) { userData = JSON.parse(saved); }
+    }
+
+    // --- MÔ PHỎNG PHÂN TÍCH CODE ---
+    document.getElementById('analyzeBtn').onclick = async () => {
+        const text = document.getElementById('codeArea').value.trim();
+        const res = document.getElementById('analyzeResult');
+        if(!text) { showToast("Vui lòng dán code vào để demo!", "warn"); return; }
+        
+        res.style.display = 'block';
+        res.innerHTML = `
+            <div style="text-align:center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <div style="margin-top:15px; color:var(--primary); font-weight:600; font-size:1.1rem;">AI Đang Soi Mã Nguồn Của Bạn...</div>
+                <p style="font-size:0.85rem; color:var(--muted); margin-top:8px;">(Lưu ý: Đây là bản Prototype nên kết quả trả về là giả lập định dạng)</p>
+            </div>`;
+        
+        const resultHtml = await fetchGeminiMock();
+        res.innerHTML = resultHtml;
+        showToast("Phân tích hoàn tất (Chế độ Demo)!", "success");
+    };
+
+    // --- MÔ PHỎNG LỜI KHUYÊN AI DASHBOARD ---
+    async function fetchAIAdvice() {
+        const msgEl = document.getElementById('aiMessage');
+        msgEl.innerHTML = `<span class="loading-spinner" style="width:14px; height:14px; border-width:2px; margin-right:8px; vertical-align:middle;"></span> AI đang suy nghĩ...`;
+        
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Delay giả
+        
+        const mockAdvice = [
+            "Kỷ luật là cầu nối giữa mục tiêu và thành tựu. Cùng code thêm một task nữa nhé!",
+            "Tập trung cao độ hôm nay, bạn sẽ cảm ơn chính mình vào ngày mai.",
+            "Code sạch không tự sinh ra, nó được rèn giũa qua từng dòng bạn tự tay debug.",
+            "Hệ thống phát hiện bạn đang có chuỗi học tập cực tốt. Giữ vững phong độ nghen!"
+        ];
+        
+        const aiText = mockAdvice[Math.floor(Math.random() * mockAdvice.length)];
+        msgEl.innerHTML = ""; let i = 0;
+        const typeWriter = setInterval(() => { msgEl.innerHTML += aiText.charAt(i); i++; if(i >= aiText.length) clearInterval(typeWriter); }, 30);
+    }
+
+    // CÁC HÀM TIỆN ÍCH KHÁC (GIỮ NGUYÊN)
+    let timer = null, timeLeft = 25 * 60, currentLimit = 25 * 60, isGoku = false;
+    window.setTimer = function(mins) {
+        if (timer) return showToast("Đang đếm giờ!", "warn");
+        currentLimit = mins * 60; timeLeft = currentLimit;
+        const m = Math.floor(timeLeft/60).toString().padStart(2, '0');
+        const s = (timeLeft%60).toString().padStart(2, '0');
+        document.getElementById('pomoDisplay').textContent = `${m}:${s}`;
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn${mins}`).classList.add('active');
+    };
+
+    function toggleTimer() {
+        if (timer) {
+            clearInterval(timer); timer = null; document.getElementById('timerToggle').innerHTML = '<i class="fa-solid fa-play"></i>';
+        } else {
+            timer = setInterval(() => {
+                timeLeft--; 
+                const m = Math.floor(timeLeft/60).toString().padStart(2, '0');
+                const s = (timeLeft%60).toString().padStart(2, '0');
+                document.getElementById('pomoDisplay').textContent = `${m}:${s}`;
+                if(isGoku) document.getElementById('gokuTimerDisplay').textContent = `${m}:${s}`;
+                if (timeLeft <= 0) { clearInterval(timer); timer=null; showToast("Xong phiên!", "success"); }
+            }, 1000);
+            document.getElementById('timerToggle').innerHTML = '<i class="fa-solid fa-pause"></i>';
+        }
+    }
+    document.getElementById('timerToggle').onclick = toggleTimer;
+    document.getElementById('timerReset').onclick = () => { if(timer) toggleTimer(); setTimer(currentLimit/60); };
+
+    document.getElementById('gokuBtn').onclick = () => {
+        isGoku = true; document.getElementById('gokuMode').style.display = 'flex';
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        if(!timer) toggleTimer();
+    };
+
+    let exitHoldTimer; const exitGBtn = document.getElementById('exitGokuBtn');
+    const startHold = () => { exitGBtn.textContent = "Đang giữ..."; exitHoldTimer = setTimeout(() => { showToast("Ghi nhận vi phạm!", "danger"); isGoku = false; document.getElementById('gokuMode').style.display = 'none'; if (document.fullscreenElement) document.exitFullscreen(); if(timer) toggleTimer(); }, 3000); };
+    const cancelHold = () => { clearTimeout(exitHoldTimer); exitGBtn.textContent = "Giữ 3 giây để Bỏ cuộc"; };
+    exitGBtn.onmousedown = startHold; exitGBtn.onmouseup = cancelHold; exitGBtn.onmouseleave = cancelHold;
+
+    function initChart() {
+        const ctx = document.getElementById('pomoChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line', data: { labels: ['T2','T3','T4','T5','T6','T7','CN'], datasets: [{ data: [1,3,2,5,4,6,2], borderColor: '#7274f8', tension: 0.4, fill: true, backgroundColor: 'rgba(114, 116, 248, 0.15)', borderWidth: 3 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+        });
+    }
+
+    function switchTab(id, el) {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        el.classList.add('active'); document.getElementById('view-' + id).classList.add('active');
+    }
+    function openModal(id) { document.getElementById('modal-' + id).classList.add('active'); }
+    function closeModal(id) { document.getElementById('modal-' + id).classList.remove('active'); }
+    function showToast(msg, type = "success") {
+        const div = document.createElement('div'); div.className = 'toast';
+        div.style.background = 'var(--panel)'; div.style.border = '1px solid var(--glass-border)';
+        div.style.borderLeft = `4px solid ${type === "success" ? "var(--accent)" : type === "warn" ? "var(--warn)" : "var(--danger)"}`;
+        div.style.padding = '14px 20px'; div.style.borderRadius = '12px'; div.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+        div.style.animation = 'fadeIn 0.3s ease'; div.innerHTML = `<span style="font-size:0.9rem; font-weight:600">${msg}</span>`;
+        document.getElementById('toastContainer').appendChild(div);
+        setTimeout(() => { div.style.opacity = 0; setTimeout(() => div.remove(), 300); }, 3000);
+    }
+
+    document.getElementById('launchBtn').onclick = () => {
+        userData.name = document.getElementById('userName').value || "Nhóm OCT";
+        save(); document.getElementById('onboarding').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'flex';
+        setTimeout(() => document.getElementById('mainApp').style.opacity = '1', 50);
+        document.getElementById('displayName').textContent = userData.name;
+        initChart(); fetchAIAdvice();
+    };
+
+    window.onload = () => { load(); if(userData.name) { document.getElementById('onboarding').style.display = 'none'; document.getElementById('launchBtn').click(); } };
+</script>
+</body>
+</html>
